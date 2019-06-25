@@ -1,0 +1,2114 @@
+\documentstyle[11pt,psfig,epsfig,amsfonts,amsmath,amssymb,setspace]{article}
+
+% Import some more mathematical symbols
+%\usepackage{amsmath,amssymb}
+
+\def\papernumber #1 raised #2 {
+\vspace{-#2}
+\vbox to 0pt{\hfill\framebox{\bf Paper Number #1}}
+\vspace{#2}
+}
+
+%set column dimensions, intra-column gap, and intra-paragraph gap
+\setlength{\textheight}{8.75in}
+% \setlength{\columnsep}{2.0pc}
+\setlength{\textwidth}{6.8in}
+\setlength{\footheight}{0.0in}
+\setlength{\topmargin}{0.24in}
+\setlength{\headheight}{0.0in}
+\setlength{\headsep}{0.0in}
+\setlength{\oddsidemargin}{-.19in}
+\setlength{\parindent}{1pc}
+\renewcommand{\baselinestretch}{1.3}
+%\renewcommand{\baselinestretch}{1.1}
+
+\begin{document}
+
+\newtheorem{definition}{Definition}
+\newtheorem{lemma}{Lemma}
+\newtheorem{theorem}{Theorem}
+\newtheorem{corolary}{Corollary}
+\newtheorem{observation}{Observation}
+\newtheorem{claim}{Claim}
+\newtheorem{goal}{Goal}
+\newtheorem{assumption}{Assumption}
+\newtheorem{note}{Note}
+
+\newcommand{\bO}{{\mathcal O}}
+\newcommand{\rl}{{\Bbb R}}
+\newcommand{\rd}{\rl^d}
+\newcommand{\hn}{\frac{n}{2}}
+\newcommand{\eps}{\varepsilon}
+\newcommand{\enns}{$\eps$-NNS }
+\newcommand{\rcal}{{\mathcal R}}
+\newcommand{\qcal}{{\mathcal Q}}
+\newcommand{\scal}{{\mathcal S}}
+\newcommand{\D}{\Delta}
+\newcommand{\V}{{\mathcal V}}
+\newcommand{\vor}{{\mathrm Vor}}
+\newcommand{\e}{{\mathrm exp}}
+\newcommand{\rstar}{${\mathrm R}^*$}
+\newcommand{\poly}{{\mathrm poly}}
+\newcommand{\mytitle}[1]{{\flushleft \bf {#1}\\}}
+\newcommand{\comment}[1]{} 
+
+% Different font in captions
+\newcommand{\captionfonts}{\small}
+
+\makeatletter  % Allow the use of @ in command names
+\long\def\@makecaption#1#2{%
+  \vskip\abovecaptionskip
+  \sbox\@tempboxa{{\captionfonts #1: #2}}%
+  \ifdim \wd\@tempboxa >\hsize
+    {\captionfonts #1: #2\par}
+  \else
+    \hbox to\hsize{\hfil\box\@tempboxa\hfil}%
+  \fi
+  \vskip\belowcaptionskip}
+\makeatother   % Cancel the effect of \makeatletter
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+\title{{\LARGE\bf Relational and First-Order Decision-Theoretic Planning:\\ Foundations and Future Directions}\\
+	{\Large \bf Depth Oral Report}}
+\author{{\sf Scott Sanner}\\
+        {\small Department of Computer Science}\\
+        {\small University of Toronto}\\
+        {\small\tt ssanner@cs.toronto.edu}\\}
+
+\maketitle
+
+\begin{abstract}
+As research in different areas of planning, knowledge representation,
+decision theory, and reasoning under uncertainty has progressed over
+the years, it has become apparent that much of this work can be
+unified under the formalisms of relational and first-order decision
+theoretic planning.  This report 1) outlines the foundations of this
+theory, 2) presents a framework for many of these different areas of
+planning, 3) considers many of the representational and algorithmic issues
+that allow these theories to be applied in practice, and 4)
+explores potential directions for future research.
+\end{abstract}
+
+\newpage
+
+\tableofcontents
+
+\newpage
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+\section{Introduction}
+
+\subsection{Motivations}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+% Figure 1 - Introduction
+\begin{figure}[t!]
+
+\begin{center}
+%\framebox[4.0in]{$\;$}
+%\fbox{\rule[-.5cm]{0cm}{4cm} \rule[-.5cm]{4cm}{0cm}}
+\fbox{
+\epsfig{file=intro.eps,angle=0,height=7.5cm} 
+}
+\end{center}
+\caption{Above is a decision-theoretic planning problem of utmost importance
+to any grad student at the University of Toronto - planning the morning
+walk to the office.  In this problem, the starting state is near the
+southeast corner of Spadina and College and all action transitions are
+deterministic, except for jaywalking from Second Cup.  There are
+different reward values for various states and there are two absorbing
+states: The G.S.U. Pub - close by with a moderate reward, and the
+office - farther, but higher reward since this is the primary goal.
+The decision problem is the following: given that future rewards are
+discounted proportional to the number of steps $n$ they occur in the future
+(e.g. $\gamma^n$ where $0 \leq \gamma < 1$), find an action policy
+that maximizes the expected sum of discounted future
+reward beginning from the start state.}
+\label{intro}
+
+\end{figure}
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+Decision-theoretic planning is ubiquitous.  As agents operating in the
+world, we do it every day.  For example, take the problem domain given
+in Figure~\ref{intro}.  Which path should we take to the office?
+Maybe we're running late and we need to get there as quickly as
+possible.  Maybe we prefer a path that takes us by a coffee shop.
+Maybe we'd like to optimally tradeoff \emph{both} preferences.
+
+In a more formal sense, decision-theoretic planning is the task of
+determining an optimal plan (or more generally, a policy) that
+optimizes some reward criterion given a state and action model of the
+environment.  By definition, this task subsumes a large part of
+agent-oriented AI.  And if generalized to
+handle partial observability, multiple agents, and sampled model dynamics
+(i.e., reinforcement learning),
+this framework subsumes almost any decision or control
+problem in AI.
+
+\subsection{Outline}
+
+While we won't consider the most general frameworks for
+decision-theoretic planning in this paper, we will consider the
+general framework of relational and first-order decision theoretic
+planning that subsumes many planning problems for which the state is
+fully observable, the transition dynamics are known, and the state
+and action representation is discrete.
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+% Figure 2 - {Language, Uncertainty, Hierarchy} Cube
+\begin{figure}[t!]
+
+\begin{center}
+%\framebox[4.0in]{$\;$}
+%\fbox{\rule[-.5cm]{0cm}{4cm} \rule[-.5cm]{4cm}{0cm}}
+\fbox{
+\epsfig{file=dims.eps,angle=0,height=9cm} 
+}
+\end{center}
+\caption{This diagram shows the major representational dimensions of fully-observable
+first-order decision-theoretic planning that will be covered in this
+paper.  Each vertex has a corresponding label referring to the
+common term for this planning representation in the literature.  The
+major conceptual divisions for these vertices and their corresponding
+sections in this paper are given in the key on the right.  The goal of this paper
+is to cover the foundations building up to the most expressive formalism - 
+planning with program constraints in relational/first-order stochastic domain
+representations.  Once we have completed the foundations for this formalism, 
+we will cover future directions for research from this departure point.}
+\label{dims}
+
+\end{figure}
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+To build this unifying framework, we start from the most basic
+planning system - deterministic search in a flat, enumerated state
+space with atomic actions - and present the necessary formal machinery
+required to support enhancements along the following dimensions:
+
+\begin{itemize}
+
+\item \emph{Domain language expressivity $\in$ \{Unstructured, Propositional, Relational/First-Order\}}
+
+\item \emph{State transition uncertainty $\in$ \{Deterministic, Stochastic\}}
+
+\item \emph{Program constraints $\in$ \{No, Yes\}}
+
+\end{itemize}
+
+While these three dimensions admit 12 possible representations, we
+will not cover each representation in detail.  Rather, we briefly
+cover the foundations for deterministic and stochastic planning and proceed
+to cover the advances that allow us to arrive at the general framework of
+planning with program constraints in relational/first-order stochastic
+domain representations.  Figure~\ref{dims} outlines this framework and
+the chapter divisions in this survey.
+
+\section{Deterministic planning}
+
+For a general overview of deterministic planning, Weld~\cite{weld:popsurvey,weld:recent}
+provide excellent references.
+Here, we only cover the basic representations for relational and first-order planning
+necessary for the understanding of subsequent sections.
+
+\subsection{Relational planning}
+
+In the paradigm of relational planning, state properties and actions
+are specified using relations over domain objects.  When a
+relational planning model is grounded for a particular instantiation
+of domain objects, one attains a propositional model of the domain.
+STRIPS and PDDL are two of the most popular languages for relational
+planning representations so we cover these in the next section.
+
+\subsubsection{STRIPS and PDDL}
+
+STRIPS is one of the most commonly used planning languages and was
+introduced by Fikes and Nilsson~\cite{fn:strips}.  Since the STRIPS
+syntax has been modified over the years, we cover a slightly enhanced
+but standardized STRIPS-like syntax known as PDDL (planning domain
+description language).  The original PDDL syntax and semantics was
+created by McDermott et al.~\cite{pddl} and revised for version 2.1
+by Long and Fox~\cite{pddl21}.  PDDL's most important departure from
+STRIPS is the addition of both universal and conditional effects that
+allow an action effect to modify \emph{any} relations meeting some
+condition (e.g., a paint action that paints \emph{all} objects
+\emph{at} some location).
+
+A PDDL domain consists of the following:
+
+\begin{itemize}
+
+\item \emph{State Representation} 
+States are described using
+relations over objects from a finite domain.  Each ground atom
+(e.g., $On(b_1,b_2)$) represents a boolean proposition.
+To make this specification
+compact, a state is specified by stating only the $true$ ground
+atoms, any unspecified ground atoms are assumed $false$.
+
+\item \emph{Action Representation}
+An action is
+specified by its preconditions
+and its effects (represented as add and delete lists in STRIPS or
+non-negated and negated effects in PDDL).  
+Following is an example of the stack action expressed in PDDL (its
+intent should be clear from the syntax):
+
+\begin{verbatim}
+ (:action stack
+  :parameters (?a ?b)
+  :precondition (and (forall (?c) (not (on-top-of ?c ?a)
+                     (forall (?c) (not (on-top-of ?c ?b))))))
+  :effect       (and (forall (?c) 
+                         (when (on-top-of ?a ?c)
+                               (not (on-top-of ?a ?c))))
+                         (on ?a ?b))) 
+\end{verbatim}
+
+%\vskip .5pc \hskip -1pc
+%{\bf Problem Representation}
+%
+%\hskip -1pc
+\item \emph{Problem Representation} A planning problem is represented by a 
+domain instantiation, an initial state and a goal formula.  The
+initial state is represented by a set of true ground
+atoms.  The goal representation in PDDL can be
+any closed first-order formula.  
+%This formula can then be tested on
+%the ground state under a domain closure assumption.
+
+\end{itemize}
+
+\subsection{First-order planning}
+
+While the STRIPS and PDDL relational planning representations provide a template 
+for any domain instantiation, many planning algorithms that use these representations
+cannot be applied when the domain instantiation is unknown.  In order to plan for
+\emph{all} domain instantiations, including those with infinitely many objects,
+it is often easier to convert the STRIPS and PDDL domains to a
+first-order formalism where there exist well-defined algorithms to handle
+these cases.
+
+\subsubsection{Situation calculus}
+
+The situation calculus is a first-order language for
+axiomatizing dynamic worlds~\cite{mccarthy63}.   It's basic language elements
+consist of actions, situations and fluents:
+
+\begin{itemize}
+
+\item \emph{Actions}: Actions are first-order terms consisting of an
+action function symbol and arguments.  For example, an action
+for placing $b_2$ on $b_1$ in the running blocks world example would be
+given by the term $stack(b_2, b_1)$.
+
+\item \emph{Situations}: A situation is a first order term denoting
+a specific state.  The initial situation is usually denoted as $s_0$ and
+subsequent situations resulting from action executions are obtained
+from the $do(a,s)$ function that represents the situation resulting from the execution 
+of action $a$ in state $s$.
+For example, the situation resulting
+from stacking $b_2$ on $b_1$ in the initial situation, and then stacking
+$b_3$ on $b_2$ is given by the term \mbox{$do(stack(b_3,b_2),do(stack(b_2,b_1),s_0))$}.
+
+\item \emph{Fluents}: A fluent is a relation whose truth value varies from
+situation to situation.  A fluent is simply a relation
+whose last argument is a situation term.  For example, given a correct
+domain axiomatization and initial state $s_0$ where $b_2$ is not on
+$b_1$ and both blocks have nothing on them, then $On(b_2,b_1,s_0)$ is
+false while $On(b_2,b_1,do(stack(b_2,b_1),s_0))$ is true.  We do not
+consider functional fluents here for simplicity of exposition although
+all of the following ideas still apply in this case.
+
+\end{itemize}
+
+\hskip -1pc
+Without covering the various proposals for solutions to the Frame Problem (i.e., how to compactly
+characterizing what fluents change or do not change as the result of an action), we jump directly
+to Reiter's~\cite{reiter:frame} default solution.
+In this solution, one must specify all positive and
+negative effects for a fluent.  We use the following normal form for positive effect axioms:
+\begin{displaymath} 
+\gamma_F^+ (\vec{x},a,s) \supset F(\vec{x},do(a,s))
+\end{displaymath}
+And we use the following normal form for negative effect axioms:
+\begin{displaymath}
+\gamma_F^- (\vec{x},a,s) \supset \lnot F(\vec{x},do(a,s))
+\end{displaymath}
+
+From this normal form, and explanation closure axioms stating that
+these are the only effects that hold, Reiter showed that we can build
+successor state axioms that compactly encode both the effect and frame
+axioms for a fluent.  The format of the successor state axiom for a
+fluent $F$ is as follows:\footnote{Although we do not provide it here,
+we note that this intuitive definition of a successor state axiom
+makes a translation from STRIPS/PDDL very straightforward.}
+\begin{eqnarray}
+F(\vec{x},do(a,s)) & \equiv & \Phi_F(\vec{x},a,s) \nonumber \\
+                   & \equiv & \gamma_F^+(\vec{x},a,s) \vee F(\vec{x},s) \wedge \lnot \gamma_F^-(\vec{x},a,s) \label{SSAeqn} 
+\end{eqnarray}
+
+The regression of a formula $\psi$ through an action $a$ is a formula
+$\psi'$ that represents the conditions that must hold prior to performing
+$a$, if $\psi$ holds after performing $a$.  The successor
+state axioms lend themselves to a very natural definition of regression; 
+specifically, if we want to regress a fluent $F(\vec{x},do(a,s))$ through 
+an action, we need only
+substitute that action for $a$ in the successor state axiom and replace
+the fluent with its equivalent pre-action formula $\Phi_F(\vec{x},a,s)$.
+In general, we can inductively define the regression
+for all first-order formulae as follows:
+
+\begin{itemize}
+\item $Regr(F(\vec{x},do(a,s))) = \Phi_F(\vec{x},a,s)$
+\item $Regr(\lnot \psi) = \lnot Regr(\psi)$
+\item $Regr(\psi_1 \wedge \psi_2) = Regr(\psi_1) \wedge Regr(\psi_2)$
+\item $Regr((\exists x) \psi) = (\exists x) Regr(\psi)$
+\end{itemize}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+
+\subsection{First-order planning with program constraints}
+
+In general, whether one is forward-searching by progressing the
+initial state or backchaining by regressing a goal formula, there will
+always be a combinatorial explosion of possible action sequences.  To
+mitigate this explosion, one can use program constraints to limit the
+sequences of actions to be explored.  While a limited form of
+constraints on action execution were introduced in the context of
+hierarchical task network (HTN) planning~\cite{erol94htn}, we instead
+focus on the use of general program constraints that subsume the
+constraint formalism used in HTNs.
+
+\subsubsection{GOLOG}
+
+A recent proposal for combining program constraints with search in a
+first-order situation calculus theory has been GOLOG~\cite{golog}.  In
+brief, GOLOG specifies the execution of a program $\delta$ as a
+$Do(\delta,s,s')$ relation macro that recursively expands until it
+terminates in primitive action applications.  
+$Do(\delta,s,s')$ holds whenever $s'$ is a terminating situation
+resulting from the execution of program $\delta$ starting in state $s$.
+
+$Do$ is defined inductively on the structure of its first argument as follows:
+
+\begin{enumerate}
+
+\item \emph{Primitive actions (base case)}: $\; Do(a,s,s') \doteq Poss(a[s],s) \wedge s' = do(a,s)$
+
+Expands to a primitive action execution. This relation holds if
+$a$ can be applied from $s$ and $s'$ is the successor state of doing
+action $a$ in state $s$.  It is false otherwise.
+
+\item \emph{Test actions}: $\; Do(\phi?,s,s') \doteq \phi[s] \wedge s = s'$
+
+Tests the truth value of expression $\phi$ in situation $s$.
+If $\phi[s]$ holds true, this relation holds when $s' = s$,
+and is false otherwise.
+
+\item \emph{Sequence}: $\; Do([\delta_1 \textrm{;} \delta_2],s,s') \doteq \exists s''. (Do(\delta_1,s,s'') \wedge Do(\delta_2,s'',s'))$
+
+Applies to a sequence of two programs.  This relation holds for
+any $s'$ resulting from the sequential execution of both programs,
+and is false otherwise.
+
+\item \emph{Nondeterministic action choice}:  $\; Do([\delta_1 | \delta_2],s,s') \doteq (Do(\delta_1,s,s') \vee Do(\delta_2,s,s'))$
+
+Applies to the execution of either choice (but not both).  This relation
+holds for any $s'$ resulting from the successful execution of either
+program, and is false otherwise.
+
+\item \emph{Nondeterministic choice of arguments}: $\; Do((\pi x) \delta(x),s,s') \doteq (\exists x) \; Do(\delta(x),s,s')$
+
+Applies to an execution of any binding of $x$ for $\delta(x)$.  This
+relations holds for any $s'$ resulting from the successful execution
+of any binding for $\delta(x)$, and is false otherwise.
+
+\item \emph{Nondeterministic iteration}: $Do(\delta^*,s,s') \doteq \{ \textrm{Transitive closure of }0 \ldots \infty \textrm{ executions of }\delta \}$
+
+Technically, transitive closure requires a second order definition which
+we omit here.  Fortunately, there is a constructive procedural method for
+computing transitive closure that will be exploited later during search.
+Intuitively, this relation holds for any situation $s'$ reachable from $0 \ldots \infty$
+applications of the action $\delta$.
+
+\end{enumerate}
+
+One can also construct definitions for if/then conditional statements, while loops,
+procedures, and programs based on these foundational definitions.
+
+\comment{
+
+\item \emph{Conditionals}: {\bf if} $\phi$ {\bf then} $\delta_1$ {\bf else} $\delta_2$ {\bf endIf} $\doteq [\phi? \; \delta_1] \; | \; [\phi? \; \delta_2]$
+
+Meaning follows from the expansion to previously defined relations. 
+
+\item \emph{While loops}: {\bf while} $\phi$ {\bf do} $\delta$ {\bf endWhile} $\doteq [[\phi?,\delta]^* \; ; \; \lnot \phi ?]$
+
+Using the nondeterministic iteration macro defined
+previously, the meaning of this expression is $0 \ldots \infty$ number
+of repetitions of the $*$'ed test action followed by a test action
+stating that the while condition no longer holds.  Clearly this macro
+expansion holds true
+\emph{only} for valid executions of the while loop, and false
+otherwise.
+
+\item \emph{Procedures}: {\bf proc} $P (\vec{v}) \delta$ {\bf endProc}
+
+GOLOG defines procedures that macro
+expand to their arguments using call-by-value.  See the program semantics
+for an explanation of procedure semantics.
+
+\item \emph{Programs}: {\bf proc} $P_1 (\vec{v_1}) \delta_1$ {\bf endProc} ; \ldots ; {\bf proc} $P_n (\vec{v_n}) \delta_n$ {\bf endProc} ; $\delta_0$
+
+GOLOG defines a program as a set of procedures and an initial
+(complex) action.    To handle recursive procedures, the program semantics is
+given by a second-order minimization over all procedures.
+
+}
+
+Given the previously defined GOLOG program semantics, one can perform the following reasoning:
+
+\begin{itemize}
+
+\item \emph{Correctness}: $\; \; Axioms \vDash (\forall s).Do(\delta,S_0,s) \supset P(s)$
+
+Prove this to show that property $P$ holds in any situation
+resulting from a termination of the program $\delta$ (starting from
+situation $S_0$).
+
+\item \emph{Termination}: $\; \; Axioms \vDash (\exists s).Do(\delta,S_0,s)$
+
+Prove this to show that program $\delta$ has a successful terminating action sequence
+starting from $S_0$.
+
+\item \emph{Goal-Oriented Planning}: $\; \; Axioms \vDash (\exists s).Do(\delta,S_0,s) \wedge G(s)$
+
+For planning, one can use this to show that there exists an action
+sequence that satisfies the program constraints $\delta$ and satisfies
+the goal $G$ starting from an initial state.  
+
+\end{itemize}
+
+We focus on this last type of reasoning for a planning problem axiomatized
+as a situation calculus domain theory.  If we can prove that 
+a valid action sequence constrained by $\delta$ satisfies a goal
+starting from an initial situation, then we can extract a successful
+plan by examining the situation binding for $s$.  $s$ should look
+something like $do(a_1,do(\ldots,do(a_n)))$, which is
+effectively a sequence of actions satisfying the constraints of
+$\delta$ and leading to a situation that achieves the goal.  These properties
+can be verified by regressing them through the action sequence to
+see if they are satisfied in the initial state.
+
+At first, it seems that theorem proving in the second-order semantics
+of GOLOG would be quite difficult.  Fortunately, however, the second-order
+semantics is only used in cases of transitive closure, and there is
+a constructive, procedural method for computing a transitive closure
+without appealing to second-order theorem proving.  Quite simply, we can
+perform a forward-search through all action sequences consistent
+with the program constraints, and regress the goal through these postulated
+actions to determine if they are implied by the initial state.  Any 
+method that searches \emph{all} legal action sequences will find a solution \emph{iff}
+there is a solution satisfying the second-order semantics of GOLOG programs~\cite{golog}.
+
+\section{MDPs and structured representations}
+
+So far, we have only covered the deterministic planning paradigm.  To
+generalize from deterministic planning to decision-theoretic planning
+with stochastic action effects, we introduce the Markov decision
+process (MDP) model.  We start by introducing the MDP representation
+and a number of traditional algorithms for finding optimal policies
+(to be defined shortly) for MDPs.  Then we cover a number of
+enhancements to the MDP representation that often improve the time and
+space requirements of these traditional algorithms.
+
+\subsection{Markov decision processes}
+
+In the MDP~\cite{Puterman} model, an agent is assumed to fully observe
+the current state and choose an action to execute from that state.
+Based on that state and action, nature then chooses a 
+next state  
+according to some fixed probability distribution.  In an
+infinite-horizon MDP, this process repeats itself indefinitely.
+Assuming there is a reward associated with each state and
+action, the goal of the agent is to maximize the expected sum of
+discounted rewards received over an infinite 
+horizon.\footnote{Although we
+do not discuss it here, there are other alternatives to discounting
+such as averaging the reward received over an
+infinite horizon.}  This criterion assumes that a reward received
+$n$ steps in the future is discounted by $\gamma^n$ where $\gamma$ is
+a discount factor satisfying $0 \leq \gamma < 1$.  The goal of the
+agent is to choose its actions in order to maximize
+the expected, discounted future reward in this model.
+
+Given this high-level description of the MDP model, we now proceed to
+provide a more detailed mathematical definition of an MDP
+and describe a number of algorithms
+that can be used to find optimal action policies for this model.
+
+\subsubsection{MDP representation}
+
+Formally, a finite state and action MDP is
+a tuple: $\langle S, A, T, R \rangle$
+where: $S$ is a finite state space, $A$ is a finite set of actions,
+$T$ is a transition function: $T: S \times A \times S \rightarrow [0,1]$
+where $T(s,a,\cdot)$ is a probability distribution over $S$ for any
+$s \in S$ and $a \in A$, and $R$ is a bounded 
+reward function $R: S \times A \rightarrow \mathbb{R}$.
+
+As stated above, our goal is to find a policy that maximizes the
+infinite horizon, discounted reward criterion: 
+$E_{\pi}[\sum_{t=0}^{\infty} \gamma^t \cdot r^t | s_0]$, 
+where $r^t$ is a reward obtained at
+time $t$, $\gamma$ is a discount factor as defined above, $\pi$ is the
+policy being executed, and $s_0$ is the initial starting state.  Based
+on this reward criterion, we define the value function for a policy $\pi$
+as the following:
+\begin{equation}
+V_{\pi}(s) = E_{\pi} \left[ \sum_{t=0}^{\infty} \gamma^t \cdot r^t \; \Big| \; s_0 = s \right] \label{vf}
+\end{equation}
+Intuitively, the value function for a policy $\pi$ is the expected 
+sum of discounted rewards accumulated while executing that policy when
+starting from state $s$.
+
+For the MDP model discussed here, the optimal policy can be shown to
+be stationary~\cite{Puterman}.
+Consequently, we use a stationary policy representation of the form
+$\pi: S \rightarrow A$, with $\pi(s)$ denoting the action to be
+executed in state $s$.  An optimal
+policy $\pi^*$ is the policy that maximizes the value function for all states.
+We denote the optimal value function as
+$V^*(s)$ and note that it satisfies the following equality:
+\begin{equation}
+V^*(s) = \max_{a} \left\{ R(s,a) + \gamma \sum_{t \in S} T(s,a,t) \cdot V^*(t) \right\} \label{vfmax}
+\end{equation}
+
+For convenience of notation in the following sections, we sometimes
+write the MDP in vector and matrix form.  We represent the reward $R(s,a)$ 
+as $|A|$ column vectors $R_{a}$ indexed by state $s$.  We represent
+the value function $V(s)$ as a column vector $V$ indexed by state $s$.  And
+we represent the transition matrix $T(s,a,t)$ as $|A|$ transition matrices
+$T_{a}$ row-indexed by current state $s$ and column-indexed by
+next state $t$.  In this case, 
+equation~\ref{vfmax} can be restated as the following:
+\begin{equation}
+V^{*} = \max_{a} \left\{ R_a + \gamma T_a V^* \right\}
+\end{equation}
+
+In some cases, we will refer to the reward and value vectors and the
+transition matrix with respect to a policy
+$\pi$; these are represented as $R_{\pi}$, $V_{\pi}$, and $T_{\pi}$,
+respectively.
+
+\subsubsection{Dynamic programming}
+
+We begin our discussion of dynamic programming by providing two equations
+that form the basis of the stochastic dynamic programming algorithms used
+to solve MDPs.
+
+We define $V_{\pi}^{0} = R(s)$ and then define the $i$-stage-to-go
+value function for a policy $\pi$ as the following:
+\begin{equation}
+V_{i}^{\pi}(s) = R(s,\pi(s)) + \gamma \sum_{t \in S} T(s,\pi(s),t) \cdot V_{i-1}^{\pi}(t)
+\end{equation}
+
+Based on this definition, Bellman's \emph{principle of optimality}~\cite{bellman} establishes
+the following relationship between the optimal value function at stage $i$
+and the optimal value function at the previous stage $i-1$:
+\begin{equation}
+V_{i}^{*}(s) = \max_{a \in A} \left\{ R(s,\pi(s)) + \gamma \sum_{t \in S} T(s,\pi(s),t) \cdot V_{i-1}^{*}(t) \right\} \label{vi}
+\end{equation}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+% Figure 2 - Forward-search and value iteration
+\begin{figure}[t!]
+
+\begin{center}
+%\framebox[4.0in]{$\;$}
+%\fbox{\rule[-.5cm]{0cm}{4cm} \rule[-.5cm]{4cm}{0cm}}
+\fbox{
+\epsfig{file=mdp.eps,angle=0,height=8.7cm} 
+}
+\end{center}
+\caption{A diagram demonstrating a) forward evaluation of the MDP value
+function and b) dynamic programming regression evaluation of the MDP value
+function.  Both methods return the same value for $V^3(s)$, but the forward evaluation
+requires exponential time in the search depth $O((|S|\cdot|A|)^d)$ and only calculates the value for one
+initial state whereas dynamic programming caches it's results on each backup thus
+requiring only polynomial time in the search depth $O(|S|\cdot|A|\cdot d)$ 
+and solving for the value function at \emph{every} state.
+}
+\label{mdp}
+
+\end{figure}
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+\vskip .5pc \hskip -1pc
+{\bf Value iteration}
+
+\hskip -1pc
+We start with an algorithm known as value iteration that directly implements equation~\ref{vi}.
+Here, we start with $V^0(s) = R(s)$ and perform the Bellman backup given
+in equation~\ref{vi} for each state $V^1(s)$ using the
+value of $V^0(s)$.  We repeat this process for each $i$,
+backing up the value function for $V^i(s)$ from $V^{i-1}(s)$ until
+we have computed the intended $i$-stage-to-go value function.
+This algorithm is demonstrated graphically in part (b) of Figure~\ref{mdp}.  
+
+Often, the Bellman backup is rewritten in two steps to separate out the
+action regression and maximization steps.  In this case, we first
+compute the $i$-stage-to-go Q function for every
+action and state:
+\begin{equation}
+Q^{i}(s,a) = R(s,a) + \gamma \cdot \sum_{t\in S} T(s,a,t) \cdot V^{i-1}(t) \label{qbackup}
+\end{equation}
+
+Then we maximize over each action to determine the value of the regressed state:
+\begin{equation}
+V^{i}(s) = \max_{a \in A} \left\{ Q^{i}(s,a) \right\} \label{vmax}
+\end{equation}
+
+This is clearly equivalent to equation~\ref{vi} but is in a form that we will
+refer to later since it separates the algorithm into its two conceptual components.
+
+Puterman~\cite{Puterman} shows that terminating once
+the following condition is met guarantees $\epsilon$-optimality for the
+policy derived on the $i$th iteration:\footnote{The policy derived on the $i$th iteration
+is simply the maximizing action $a$ for each $s$ computed during the dynamic programming
+backup.}
+\begin{equation}
+ \| V^{i} - V^{i-1} \|_{\infty} < \frac{\epsilon (1-\gamma)}{2 \gamma}
+\end{equation}
+$\epsilon$-optimality ensures that the greedy policy derived from $V^i$ satisfies 
+$\| V^i(s) - V^*(s) \|_{\infty} < \epsilon$, thus
+the policy derived on the $i$th iteration loses no more than $\epsilon$ in value over
+the infinite horizon in comparison to the optimal policy.
+
+We note that the value iteration approach requires time
+polynomial in the search depth $d$, i.e., \mbox{$O(|S|\cdot|A|\cdot d)$},
+and solves for the value function at \emph{every} state.  It can be
+proved that value iteration has a linear rate of convergence.
+
+\vskip .5pc \hskip -1pc
+{\bf Policy iteration}
+
+\hskip -1pc
+At each step of the value iteration backup, we are implicitly performing
+a policy update, determining the best action to take from every state
+in order to maximize reward.  Another approach
+to dynamic programming is the following: 
+
+\begin{enumerate} 
+\item Pick an arbitrary initial decision policy $\pi_0$ and set $i=0$.
+
+\item Solve for $V_{\pi_i}$ (see below).
+
+\item Find a new policy $\pi_{i+1} = \textrm{arg} \max_{\pi \in \Pi} \left\{ R_{\pi} + \gamma T_{\pi} V_{\pi} \right\}$
+
+\item If $\pi_{i+1} \neq \pi_{i}$ then increment $i$ and go to step 2 else return $\pi_{i+1}$.
+\end{enumerate}
+
+We note that the policy evaluation of a \emph{fixed} policy $\pi$ reduces to
+a linear system since we no longer retain the $\max$.  Thus, we can 
+solve for $V_{\pi}$ by computing the right-hand side of the following equation:
+\begin{equation}
+V_{\pi} = R_{\pi} (I - \gamma T_{\pi})^{-1} 
+\end{equation}
+
+We note that a unique solution for $V^*$ always exists since the Markovian properties
+of $T$ guarantee that $I - \gamma T$ is invertible.  Thus, we can solve for $V^*$
+directly using matrix inversion or iteratively. We note that this
+step takes time $O(|S|^3)$.
+
+Once policy iteration has terminated, the final policy returned is the optimal policy $\pi^*$
+and the value function corresponding to this policy is the optimal value function.
+It can be proved that policy
+iteration has a superlinear rate of convergence under certain
+conditions~\cite{Puterman}.
+
+So far, we have implicitly assumed that the above algorithms perform
+synchronous updates, that is, we are updating the value function in
+value iteration for all states and that we are improving the policy in
+policy iteration for all states.  We additionally note that there are
+a number of asynchronous variants of value and policy iteration that do not
+update the value or improve the policy at every state on all iterations,
+yet still retain similar convergence properties.  These algorithm
+variants are discussed by Puterman~\cite{Puterman} and Bertsekas and 
+Tsitsiklis~\cite{ndp} and are extremely useful for proving
+convergence properties of the reinforcement learning~\cite{RL} and real-time 
+search~\cite{rtdp} approaches to solving MDPs.
+
+\vskip .5pc \hskip -1pc
+{\bf Modified policy iteration}
+
+\hskip -1pc
+A comparison of the two previous algorithms reveals that they occupy two
+extremes in terms of policy updates:  value iteration performs a policy
+update on every intermediate value function whereas policy iteration performs an
+update only after solving directly for $V_{\pi}$.
+
+Consequently, there is middle ground between these two approaches
+known as modified policy iteration.  In this algorithm, we simply
+iterate between policy evaluation and policy improvement phases until
+our policy is $\epsilon$-optimal using the same terminating criteria
+of value iteration.  Algorithm convergence requires only that the
+policy evaluation decreases the residual Bellman error 
+$\| V^*(s) - V(s) \|_\infty$, for example, \emph{any} number of backups for a fixed policy.
+Modified policy iteration has a superlinear convergence rate under
+certain conditions and as noted by Puterman~\cite{Puterman}, it
+often empirically requires less computation time than both
+value and policy iteration.
+
+\subsubsection{Forward-search}
+
+If we reexamine equation~\ref{vi}, we note that we can actually compute this recurrence
+in a forward-search manner by starting at an initial state and unfolding the recurrence to depth $i$
+and then computing the expectation and maximization as we return to the initial state.  
+A graphical representation of the unfolding of this computation is shown in Figure~\ref{mdp}, part (a).  
+We note that determining the value $V^i(s)$ for a \emph{single}
+state using this method requires time exponential in the search depth $i$. %, that is, $O((|S|\cdot|A|)^i)$.
+
+Since we are performing forward search to a fixed \emph{a priori} search depth, 
+we can determine the minimum depth $i$ to search if we want an $\epsilon$ bound on the maximum error of
+our value function, given knowledge of our discount factor $\gamma$ and our maximum reward $R_{max}$:
+\begin{equation}
+i \geq \log_{\gamma} \left( \frac{\epsilon (1 - \gamma)}{R_{max}} \right) - 1 
+\end{equation}
+
+\subsubsection{Real-time dynamic programming}
+
+The real-time dynamic programming (RTDP) framework~\cite{rtdp} is a
+hybrid approach that combines real-time forward search with 
+dynamic programming.  This approach uses limited
+depth, forward-search backups to update the value function of the set
+of states visited during on-line trials, assuming that initial states
+were generated according to some fixed distribution.   The policy used for the trials
+is the optimal policy for the current value function.  Since backed-up and cached
+values from one step are used by other steps, this approach
+mixes the forward-search and dynamic programming paradigms.  It is
+provably convergent and has the advantage that it only derives the
+value function for the set of states reachable from the initial
+state distribution.  This can often be more efficient than synchronous
+dynamic programming approaches when the set of reachable states is
+small compared to the total number of states.
+
+\subsubsection{Linear programming}
+
+We briefly mention that the MDP
+can be solved by formulating it as a linear program (LP).  The fact that such
+a solution exists follows from the notion that the optimal
+policy and value function must satisfy the following matrix inequality:
+\begin{equation}
+V^* \geq R_{\pi^*} + \gamma T_{\pi^*} V^*  
+\end{equation}
+
+The LP formulations are as follows:
+
+\vskip .5pc \hskip -1pc
+{\bf Primal LP formulation}
+\begin{eqnarray*}
+\textrm{Variables:}  & & V(s), \; \; \forall s \in S \\
+\textrm{Minimize:}  & & \sum_{s \in S} V(s) \\
+\textrm{Subject to:} & & V(s) - \sum_{s \in S} \gamma P(s,a,t) V(t) \geq R(s,a), \; \; \forall a \in A, s \in S 
+\end{eqnarray*}
+
+\vskip .5pc \hskip -1pc
+{\bf Dual LP formulation}
+\begin{eqnarray*}
+\textrm{Variables:}  & & \chi(s,a), \alpha(s), \; \; \forall a \in A, s \in S \\
+\textrm{Minimize:}   & & \sum_{s \in S} \sum_{a \in A_s} R(s,a) \chi(s,a) \\
+\textrm{Subject to:} & & \sum_{a \in A_t} \chi(t,a) - \sum_{s \in S} \sum_{a \in A_s} \gamma P(t|s,a) \chi(s,a) = \alpha(t), \; \; \forall t \in S \\
+                     & & \chi(s,a) \geq 0, \; \; \forall a \in A, s \in S
+\end{eqnarray*}
+
+Puterman~\cite{Puterman} notes that solving the dual LP formulation is often
+more efficient than solving the primal LP formulation.
+
+\subsection{Structured MDP representations}
+
+While the more efficient MDP solution techniques from the previous section
+require time polynomial in $|S|$ and $|A|$ for each iteration, we note that $|S|$ can be
+very large.  In fact, if we let $S$ be represented by $n$
+binary state variables (i.e., $S = \{ S_1 \times S_2 \times \cdots \times S_n \}$), then
+the total number of states is $2^n$.  This is the well-known
+curse of dimensionality and it unfortunately makes the enumerated-state
+MDP solution algorithms run in at least exponential time in the number of state
+variables $n$.
+
+Consequently, efficient representations and algorithms are extremely
+important for the application of MDPs in real-world domains.
+This is especially true for fields such as decision-theoretic
+planning that often use propositional representations encoding billions
+of states.  The previously described algorithms would never terminate
+in a reasonable amount of time if we used an enumerated state 
+representation for large numbers of state variables.
+
+In the following sections, we describe structured representations and
+algorithms that mitigate these problems and make it possible to solve
+for exact and approximate solutions in extremely large MDPs.
+
+\subsubsection{Factored transition and reward dynamics}
+
+One of the huge MDP representation bottlenecks stems from
+representing the transition matrices.  With a state formed
+from 10 binary variables, the full conditional joint transition distribution would be
+of the form \mbox{$P(S_1', S_2',\ldots, S_{10}' |  S_1, S_2, \ldots S_{10} , A)$} (with
+the $S'$ variables representing the next state variables).  If
+this distribution were represented in tabular format, it would require $|A|$
+matrices, each with $2^{20}$ entries.  Even if it were possible to directly 
+specify or learn a low variance estimate of this many parameters, it would
+become prohibitively difficult to store this table as more variables
+were added.
+
+However, from an intuitive standpoint, most actions affect
+only very few variables.  \comment{This was our motivation for representing
+action transitions in Section~{2.3}.  In this case,} Since our effects
+are probabilistic, we need a compact, structured way of specifying
+the transition probability distribution.
+Consequently, a dynamic Bayes net (DBN)~\cite{boutilier99dt} is an ideal representation.
+We can similarly use a factored representation known as an influence diagram
+to model the state variables that influence the reward function.
+A sample DBN and influence diagram are pictured in part (a) of Figure~\ref{dbnadd}.
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+% Figure 2 - Blocks world diagram
+\begin{figure}[t!]
+
+\begin{center}
+%\framebox[4.0in]{$\;$}
+%\fbox{\rule[-.5cm]{0cm}{4cm} \rule[-.5cm]{4cm}{0cm}}
+\fbox{
+\epsfig{file=dbnadd.eps,angle=0,height=8.2cm} 
+}
+\end{center}
+\caption{a) A dynamic Bayes network and influence diagram representing
+a transition function and a reward function. b) An efficient encoding of
+the transition function CPT for the DBN (assuming the action is known). Note that $S_3'$
+sums to one over all possible previous states.  c) An efficient encoding
+of the reward function based on the states that influence it in the influence
+diagram.}
+\label{dbnadd}
+
+\end{figure}
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+For this DBN, we can write the full conditional joint transition distribution for an action $a$ as:
+\mbox{$P(S_1',S_2',\ldots,S_5' | S_1,S_2,\ldots,S_5,a)$}.  
+This distribution is given by the following factored definition:
+\begin{eqnarray}
+P(S_1',S_2',S_3',S_4',S_5' | S_1,S_2,S_3,S_4,S_5,a) & = & P(S_1'|S_1,a) P(S_2'|S_2,S_3,a) P(S_3'|S_2,S_3,S_4,a) \nonumber \\
+& & \qquad \qquad \qquad \; \; \; \; \; P(S_4'|S_4,a) P(S_5'|S_4,S_5,a) \nonumber
+\end{eqnarray}
+
+% Give numeric example
+
+We note that the full conditional joint distribution for a single action
+would take $992$ parameters to
+represent as a full CPT while the factored representation requires only $20$
+parameters to specify the same exact distribution under the given 
+DBN conditional independence assumptions.
+
+There are alternative representations to the DBN transition
+representation such as probabilistic
+generalizations of STRIPS~\cite{bout-dean-hanks} but 
+Littman~\cite{littman:aaai97} proved that this 
+representation can be converted to a dynamic
+Bayes net representation with only a polynomial
+blowup in size.  This effectively demonstrates that both formalisms
+are representationally equivalent. 
+
+By using DBN and influence diagram structures to
+efficiently representing transition and reward dependencies, we can
+often save a considerable amount of space in these representations.
+In the worst case transition matrix representation, every state
+variable depends on every other variable, thus requiring a number of
+parameters exponential in the state variables.  And in the best case,
+every state variable is completely independent of all other state
+variables, requiring just one parameter per state variable (in the
+binary case) and thus yielding an exponential reduction in parameters over
+the worst case.  In the typical case, every state variable
+depends on only a \emph{few} others in the transition matrix
+representation, thus falling somewhere between these two extremes.
+While a factored transition and reward representation can yield
+substantial savings for the MDP representation, we note that this factoring
+cannot often be preserved in the value function due to the correlation
+of action effects over sufficiently extended periods of time.
+Nevertheless, representing large MDPs is a first step toward solving them
+and subsequent techniques will take advantage of this factored structure
+for efficient computation and approximation.
+
+\subsubsection{Context-specific independence and approximation}
+
+Even if we can represent the joint transition probability as a Bayes
+net with a conditional probability table (CPT) for each successor
+state variable, we can often represent these tables more efficiently
+than by enumerating the entire table.  Quite often, we find that
+certain values of variables in a CPT render the other values
+irrelevant.  This is known as context-specific independence (CSI)~\cite{csi}.
+
+For example, if we know that $S_3'$ depends on $S_2, S_3$ and $S_4$ but that in the context
+of $S_2 = false$ that $S_3'$ depends only additionally on $S_4$, then we can merge
+the entries for $S_3 = true$ and $S_3 = false$ in this context.  In order to represent
+this CSI compactly, we can use a decision tree or more generally
+an ADD~\cite{bryant:bdd86}.  An example ADD for this probability distribution is given 
+in Figure~\ref{dbnadd} part (b) and an example ADD for the reward is given in
+Figure~\ref{dbnadd} part (c).
+
+In addition to the representational efficiency of merging identical
+values in a CPT, we note that computation with these CPT data
+structures, especially ADDs, is also very efficient.  When we multiply
+or add two CPTs represented as ADDs, we are just performing the
+standard multiply and add operations for ADDs that avoid enumerating
+the entire state space.  Consequently, we can use these data
+structures as all intermediate representations during value iteration,
+thus performing value iteration without explicitly requiring full
+enumeration of the state space.
+
+One additional benefit of tree or ADD specification of CPTs is that it
+allows one to prune internal nodes in a decision tree and replace
+these nodes with the minimum and maximum value of the tree or ADD
+rooted at that node.  One can then perform value iteration maintaining
+these upper and lower bounds.  Since the Bellman backup is a known
+contraction operator, we know that the algorithm must still converge,
+this time to an approximately optimal solution.  One can use various
+heuristics for pruning and reorganizing the internal decision variable
+orderings to minimize the amount of approximation required.  One can
+also control the amount of pruning in response to the ADD size in
+order to bound the maximum representation size.
+
+Various combinations of 
+these ideas have been implemented in a number of propositional
+decision-theoretic planning systems, e.g. policy iteration using
+decision trees~\cite{spi}, value iteration using ADDs~\cite{spudd}, and ADDs with
+approximation pruning techniques~\cite{apricodd}.
+In practice, these algorithms are quite efficient, allowing one to easily
+multiply CPTs representing over a billion states.  Nonetheless, while the
+best case value function and policy representations could be constants (independent of state),
+the worst case representations are exponential in the number of state variables, having a different
+value or action policy for every state.
+In the general case, Littman et al.~\cite{planexist}
+note that finding an optimal plan using tree-structured CPTs is \textsc{EXP-Complete},
+and finding an approximately optimal plan using \emph{bounded-size}, tree-structured CPTs
+is \textsc{PSPACE-Complete}.  Since an ADD is equivalent to a tree-structured
+CPT when all terminal values of the tree are distinct, it seems that
+these worst-case results would also extend to ADD-based representations.
+
+\subsubsection{Additive structure and approximation}
+
+One can factor the value function into weighted additive components
+in an effort to capture additive structure in the value function
+and use techniques such as linear approximation to select
+weights that minimize the overall approximation error.  One can
+also use more general function approximation such as nonlinear
+functions or neural nets~\cite{ndp} but it is generally difficult to
+provide useful convergence properties for such approximation
+architectures so we do not discuss them here.  We formalize the case of linear
+value function approximation next.
+
+If we have $n$ states in our MDP, the exact value function can be specified 
+as a vector in $\mathbb{R}$${}^{n}$.  This vector can be approximated by a linear
+combination of basis functions (i.e. vectors).  The 
+linear subspace spanned by this basis set might not include the
+actual value function, but one can perform a projection to minimize
+some error measure between the real value function and the linear
+combination of basis functions.  
+
+For the following formalization, we assume that $A$ is an $n \times k$ 
+matrix representing the concatenation of $k$ basis function vectors (where
+$k$ is usually small) and $\vec{w}$
+is a $k$ element column vector representing the linear combination weights for each 
+of the basis vectors.  Then $A \vec{w}$ represents a linear approximation of the
+value function.  
+
+As our projection method, we could use a least-squares linear projection (by minimizing
+the $\mathcal{L}$${}_2$ (Euclidean norm) error measure).
+Unfortunately, as done in ~\cite{kp1,kp2} but as pointed out by Guestrin 
+et al.~\cite{gkp,gkpv} (GKPV from here out), using these approximate representations
+leads to difficulties when proving convergence
+of the standard MDP algorithms.
+Consequently, as suggested in GKPV, we take a max-norm projection
+approach (by minimizing $\mathcal{L}_{\infty}$ (max-norm) error) 
+that allows convergence to be shown much more easily since it directly minimizes
+the error used in the convergence proofs for MDPs.  Furthermore, these techniques lead to
+very efficient projection algorithms. 
+
+Following is a method to determine the minimum $\mathcal{L}_{\infty}$ error representation for
+an approximate value function under a fixed policy $\pi$:
+\begin{eqnarray}
+\vec{w\;}^* & = & \textrm{arg} \min_{\vec{w}} \; \; \| A \vec{w} - (R_{\pi} + \gamma P_{\pi} A \vec{w})  \|_{\infty} \nonumber \\
+        & = & \textrm{arg} \min_{\vec{w}} \; \; \| (A  - \gamma P_{\pi} A) \vec{w} - R_{\pi}  \|_{\infty}
+\end{eqnarray}
+
+From this, we can derive a simple algorithm for approximate policy iteration by
+repeating the following steps until the policy converges:
+\begin{eqnarray}
+\vec{w}^{(t)}   & = &  \textrm{arg} \min_{\vec{w}}     \; \; \|   (A  - \gamma P_{\pi^{(t)}} A) \vec{w} - R_{\pi^{(t)}}  \|_{\infty} \label{mproject} \\
+\pi^{(t+1)}     & = &  \textrm{arg} \max_{\pi \in \Pi} \; \; (R_{\pi} + \gamma P_{\pi} A \vec{w}^{(t)}) 
+\end{eqnarray}
+
+\comment{In order to determine the set of weights minimizing the max-norm error in equation~\ref{mproject}, 
+one can use a linear program
+cited by Koller at al~\cite{gkp}.  This linear
+program was designed to minimize the error of the following system:
+\begin{equation}
+\vec{w}^* \in \textrm{arg} \min_{\vec{w}} \; \; \| Cw - b \|_{\infty}
+\end{equation}
+}
+
+If we let $C = A  - \gamma P_{\pi^{(t)}} A$ and $\vec{b} = R_{\pi^{(t)}}$, then we can use the 
+following linear program to find the optimal $\vec{w}$ for the max-norm projection that satisfies
+equation~\ref{mproject}:
+\begin{eqnarray*}
+\textrm{Variables:}  & & w_1, \ldots, w_n, \phi \\
+\textrm{Minimize:}   & & \phi \\
+\textrm{Subject to:} & & \phi \geq \sum_{j=1}^{k} c_{ij}w_j - b_i, \; \; \forall i \in \{ 1 \ldots n \} \\
+                     & & \phi \geq b_i - \sum_{j=1}^{k} c_{ij}w_j, \; \; \forall i \in \{ 1 \ldots n \}
+\end{eqnarray*}
+
+This linear program
+selects a set of weights that minimize the absolute projection error over
+all states.  The problem as noted by GKPV is that there is a constraint
+required for every state and this is unfortunately exponential in the
+number of state variables.  Fortunately though, GKPV show that one can use a
+variable elimination algorithm to generate a number of constraints
+bounded by the tree width of the transition DBN.  Additionally, one
+could use a constraint generation approach to avoid specifying all of
+these constraints~\cite{relu}.
+
+Using these techniques, one can either take a policy iteration approach~\cite{gkp}
+as described above or a direct linear programming approach~\cite{directva} to solving
+the MDP in one step.  On problems with a large amount of additive structure in the
+value function, such approaches can approximately solve problems far larger
+than those solvable by context-specific independence alone.
+Unfortunately, one cannot obtain \emph{a priori} error bounds on the final value
+function and \emph{a posteriori} error bounds 
+can only be directly obtained when using approximate policy iteration.
+Furthermore, we note that
+while such techniques can be used in cases where the value function is
+believed to have additive separability, additive separability in
+the reward does not imply that such additive structure will be
+reflected in the optimal value function.
+
+One additional difficulty with linear value function approximation
+is that of generating a good set of basis functions.  Certainly, a
+poor set of basis functions that is far from the exact value function
+under any norm can have a severely adverse impact on decision quality.
+Consequently, one can take a number of approaches to generating basis
+functions such as finding subtasks with additive reward~\cite{basis1}
+or performing branch-and-bound search to find Bellman-error minimizing
+basis functions~\cite{basis2}.  Unfortunately, at this point in time,
+generating a good basis function set is still more of an art than a
+science, and there are no currently known methods that allow one to attain
+\emph{a priori} guarantees on the decision quality for a given set of
+basis functions.
+
+%- Talk about k+1 vars for bases but N constraints... constraint gen, tree width
+%  for max
+
+%- Can do whole thing in one shot by producing LP - doesn't give bounds
+
+%- PI as described uses decision lists for policy rep... likely to be small
+%  given a default action model
+
+% - Max-norm PI
+% - Use FO-templates, counting aggregators
+% - Represent reward as weighted sum of ADDs, starts off as reward, regress... expands 
+%     (subtract prev basis but easy - ADDs subsumed as long as a,b,c.. => a' otherwise
+%      just get shifting basis functions)
+% - Limit ADD size, choose which vars to prune to keep basis functions, keep
+%     min, max bounds
+% - Now generate weight minimization - have to be CSI when generating bounds
+%     because ADD's for basis functions now - but this is good since we can
+%     compactly represent a basis function.  For each basis function and factor, generate
+%     equality of factor-assign for appropriate basis, for each factor, provide
+%     new vars with greater than for all factors involved with.
+% - Now, perform one backup to get Qa functions - key is that every action
+%     only affects a few variables so just need a default noop - then difference
+%     will only be over a few variables - just take positive subset and map
+%     to action.  Do this for all computers... hope optimal policy is
+%     efficient to represent, should be the case in the computer domain.
+%     Or could use policy during constraint generation and again max out at
+%     tree width!  Even without default though, should be compact...maybe just
+%     order of maxing...
+
+% Cons
+% - Have to use PI to auto-generate basis functions
+
+% Pros
+% - Leverages FO representation, count aggregators in FO
+% - Basis functions generated automatically and optimally
+% - Factored representation of basis functions!!!
+%   Basis function for every ADD leaf?
+%   (just use size constraint - probably keep small to handle induced width)
+% - Can represent basis functions compactly so can handle
+%   much large bases - best of both worlds
+% - Max norm projection easy to solve - induced width from factored model!
+% - Adaptive basis functions
+% - PI provides bounds when convergent
+% - Policies for domains like network are often very compact expanded value functions
+%   are not
+% - Could even use constraint generation
+% - Policy iteration saves one from having to expand value function!!!!!!!!!
+% - Can likely leverage this in the full FO case!!!!!!!!
+% - No decision list stuff!
+% - Use basis functions for generalization?  Or is a first-order approach better...
+% - Special cases are APRICODD - 1 elements, and max-norm projection - single basis
+%   function
+
+% - Generalization to FOADDs when the time comes?
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+\section{Relational and first-order MDPs}
+
+In the previous section, we discussed decision-theoretic planning
+models that were based on a propositionally factored structure.
+However, we can generalize from the relational domain models such as
+STRIPS or PDDL discussed in the deterministic planning section to
+probabilistic variants of these representations based on the MDP model.  
+From these relational MDP specifications, we can either fix the domain objects and convert the
+representation to a propositional MDP or we can generalize the domain to a
+first-order MDP that concisely represents all possible domain
+instantiations.  In this section, we survey some of the
+approaches for solving relational and first-order MDPs.
+
+\subsection{Relational MDPs}
+
+\subsubsection{PSTRIPS / PPDDL}
+
+Just as we used the STRIPS and PDDL languages for specifying
+relational MDPs (that could be generalized to the first-order case),
+we can also specify probabilistic versions of these representations.
+The generalization that PSTRIPS~\cite{bout-dean-hanks} and PPDDL~\cite{ppddl} make to their predecessors is the
+ability to specify probabilistic effects, e.g., with respect to the
+blocks world, we can specify that with probability 0.7 a stack operation
+will successfully place a block on another block,
+and with probability 0.3, it will be dropped.
+
+To make this more concrete, an example of a PPDDL action specification follows:
+
+\begin{verbatim}
+ (:action stack
+  :parameters (?a ?b)
+  :precondition (and (forall (?c) (not (on-top-of ?c ?a)
+                     (forall (?c) (not (on-top-of ?c ?b))))))
+  :effect (probabilistic 0.7 (and (forall (?c)
+                                      (when (on-top-of ?a ?c)
+                                            (not (on-top-of ?a ?c))))
+                                      (on ?a ?b))))
+\end{verbatim}
+
+%One can also recursively nest probabilistic effects so that the probabilities
+%are multiplicative.  It would cause an exponential blowup to convert this to
+%a flat probability distribution in some cases~\ref{Rintanen}.
+
+%- Have factored probabilistic effects
+%- Can employ efficient reachability analysis (Boutilier \& Brafman?)
+%- Efficient for representing correlayed effects
+%- Could combine synchronic vars
+%- Littman 97 shows DBN is equivalent to these reps - poly translation
+%  to different planning problem
+%- Other approach is to have intermediate effect vars, then go to DBN
+
+\subsubsection{Policy induction methods}
+
+An approach to solving relational MDPs motivated by policy iteration
+is a policy induction approach used by Givan et al~\cite{givan:uai02,givan:nips03}.  The
+basic idea is to start with a domain in a PSTRIPS-like language, 
+an initial policy and a heuristic cost
+function that offers a heuristic estimate of distance to the goal.
+Then the following two operations are repeated until the change in
+a decision-list policy $\pi$ is small:
+
+\begin{enumerate}
+\item $D \Leftarrow Draw$-$Training$-$Set( \pi, \cdots )$
+\item $\pi \Leftarrow Learn$-$Decision$-$List ( D )$
+\end{enumerate}
+
+The \emph{Draw-Training-Set} function samples a number of initial states
+and then samples a number of trajectories starting from these states using the
+current policy $\pi$.
+The reward is accumulated and used to improve the Q-function estimate
+of each state and action pair in the trajectory.  After this is
+performed for a set number of trials, the set of state and action pairs
+generated and the newly estimated Q-functions are returned.
+
+The \emph{Learn-Decision-List} function takes this sampled information and
+Q-function estimates and learns a decision-list policy from these
+improved Q-function estimates.  The decisions in this list use a
+restricted object-oriented relational language, thus
+providing a policy language bias that seems to apply well to many
+domains.  For example, in a blocks world domain with relations $holding(a)$, $on(a,b)$, and
+$gon(a,b)$ (this last relation specifying the goal state), a small decision list policy
+could be given as follows: 
+\begin{eqnarray*}
+& & gon(a,b) \wedge \lnot on(a,b) \wedge holding(a) \; \longrightarrow \; putdown(a,b)  \\
+& & gon(a,b) \wedge \lnot on(a,b) \; \longrightarrow \; pickup(a) 
+\end{eqnarray*}
+These decision lists are learned via a heuristic beam search to
+avoid enumeration of all possible relational patterns.
+
+Overall, this algorithm can be summarized as a set of local search techniques (similar in
+spirit to the previously mentioned RTDP) for value determination under
+a given policy, and policy improvement via an inductive
+policy inference step.  An approach additionally used in this line of
+research is to start with small problems and build up to larger ones
+over time.  This approach bootstraps from policies learned for
+small problems with the hope that these policies will generalize to
+larger domains (which is often empirically the case).
+
+This approach has provided many promising empirical results. It learns
+reasonable policies for many domains and often performs better than
+state-of-the-art planners such as FF-Plan on the average
+solution-length criteria.  Furthermore, it is one of the few methods
+that has been reliably used in stochastic relational domains.  These
+successes largely relate to the fact that the learned policies, which
+are represented in a subset of first-order logic, often generalize
+well to new domains.  Additionally, the assumption that policies for
+small domains generalize to larger domains seems to be one that holds
+for many practical problems.  Yet, the main drawback of this work is
+that it provides no theoretical guarantees on the quality of a policy
+or the quality of its generalization to a larger domain.  And given
+that a domain may have an abrupt switch in policy for a given domain
+size (e.g., in a logistics domain, use a plane rather than a truck
+once you have at least 1,000 boxes to deliver), it is unlikely that
+such a guarantee could be given without severe restrictions.
+
+\subsubsection{Generalizing from approximate policies}
+
+The work of Guestrin et al.~\cite{freecraft} is based on a similar
+idea that policies often generalize over multiple domain
+instantiations.  This work uses the relational nature of the domain
+specification to determine small object-centered value functions that
+can serve as basis functions that are summed to form a global value
+function.  For example, in the FreeCraft domain~\cite{freecraft}, one
+has control over multiple instances of \emph{footmen} that battle
+against \emph{enemies}.  For this domain, a basis value function might
+be generated for each footman and the state of any enemies that
+footman is fighting (where the corresponding parameters of each basis
+value function are constrained to be the \emph{same}).  Then the overall
+value function would be a sum of the individual basis value functions
+for each footman.
+
+Since the local basis value functions are solved for in their
+entirety, these basis functions must be chosen such that 1) they are
+small enough to be efficiently represented and computed and 2) their sum
+provides an approximation to the full value function that
+yields a policy of reasonable quality.  In this approach, the basis functions can
+either be specified by hand or learned inductively from small problem
+solutions using decision tree algorithms.
+
+Once the basis functions are chosen for the global value function representation,
+this approach then proceeds to learn the individual value
+functions based on a standard linear program program formulation.
+However, because this MDP solution should generalize to many worlds,
+some of these worlds are sampled from a distribution that falls off
+exponentially with the world size.  Then a joint LP is formulated that
+contains a linear program for all sampled worlds (weighted by their
+probability) that sum over the basis functions for objects 
+used in that world.
+
+Once a solution is obtained, the basis value functions can clearly be used for
+\emph{any} instantiation of a new world.  Specifically, when a world is
+instantiated, a value function is constructed as a sum of basis
+functions for the instantiated objects.\footnote{There are no weights
+for basis functions here.  In this approach, the basis value functions
+themselves are learned.}  Then, one can simply plan by performing
+one-step look-ahead and choosing the optimal action.
+
+This work provides a PAC-bounded generalization guarantee
+under the assumption that worlds are stochastically sampled and the
+probability of sampling a world falls off exponentially with its size
+(i.e., the number of domain objects instantiated).  
+In addition to providing PAC-generalization bounds for the global value
+function, this work also provides promising empirical results for two
+very large domains with many similar objects and an additive reward
+function.  However, this approach
+suffers from the drawbacks that plague approximation methods: there is 
+no known method that always generates \emph{good} basis functions and there
+is no way to obtain \emph{a priori} guarantees on the decision quality
+afforded by a given set of basis functions.
+
+\subsection{First-order MDPs}
+
+First-order MDPs (FOMDPs) are a generalization of the situation calculus under
+an MDP framework.  These ideas were first introduced by Boutilier et
+al.~\cite{fomdp}.  While we do not show it here, we note that one can
+convert a PSTRIPS or PPDDL domain to a first-order
+representation.
+
+\subsubsection{Notational preliminaries}
+
+Before we delve into the representation of FOMDPs, we introduce
+a case representation that will be used
+to represent probability, reward, and value function partitions over first-order
+state space.  A case partition
+\begin{eqnarray*}
+t & = & case  [ \phi_1, t_1; \cdots; \phi_n, t_n]
+\end{eqnarray*}
+is an abbreviation for the formula
+\begin{eqnarray*}
+\bigvee_{i \leq n} { \phi_i \wedge t = t_i }
+\end{eqnarray*}
+where the $\phi_i$ are first-order state formula and the $t_i$ are terms.
+This notation partitions first-order state
+space such that the value of a case statement corresponds to the
+value of the formula partitions that are true for that state.  While,
+it is not the case that this partitioning is always exhaustive and mutually
+exclusive, we often explicitly maintain mutual exclusivity.
+
+We will
+need to perform mathematical operations on these case statements so we formalize
+these operations as follows:
+\begin{eqnarray*}
+& & case[\phi_i,t_i : i \leq n] \otimes case[ \psi_j, v_j : j \leq m] = case [\phi_i \wedge \psi_j, t_i \cdot v_j : i \leq n, j \leq m] \\
+& & case[\phi_i,t_i : i \leq n] \oplus case[ \psi_j, v_j : j \leq m] = case [\phi_i \wedge \psi_j, t_i + v_j : i \leq n, j \leq m] \\
+& & case[\phi_i,t_i : i \leq n] \ominus case[ \psi_j, v_j : j \leq m] = case [\phi_i \wedge \psi_j, t_i - v_j : i \leq n, j \leq m] \\
+& & case[\phi_i,t_i : i \leq n] \cup case[ \psi_j, v_j : j \leq m] = case [ \phi_1,t_1; \cdots; \phi_n,t_n ; \psi_1, v_1 ; \cdots ; \psi_m, v_m ] 
+\end{eqnarray*}
+Intuitively, the $\otimes$ operator states that the sum of two cases statements is simply
+the cartesian product of the formulae in each respective case statement labelled
+with the product of their respective terms.  The same idea holds true for $\oplus$ and
+$\ominus$ while $\cup$ is a staightforward union of all case partitions of two statements.
+
+\subsubsection{FOMDP representation}
+
+\vskip .5pc
+{\bf Stochastic action representation}
+
+\hskip -1pc
+Building on the foundation of the situation-calculus for first-order
+deterministic planning, we generalize this representation to 
+handle stochastic actions in an MDP framework.  
+To specify stochastic actions, we use actions that decompose into
+deterministic actions under nature's control~\cite{bhl}, for example, 
+we may choose a stochastic action such as $Load(box,truck)$ in some state but
+then according to some prespecified probability distribution (possibly conditioned
+on properties of the state), nature
+will choose the action $LoadSuccess(box,truck)$ or $LoadFailure(box,truck)$.
+
+Consequently, for a stochastic version of the situation calculus, we
+require a probability distribution over the decomposition of a
+stochastic action into nature's actions.  We can specify this by
+partitioning first-order state space into cases:
+\begin{eqnarray*}
+P( LoadSuccess(box,truck) \; | \; Load(box,truck), s ) = [ Raining(s): 0.7 \; ; \; \lnot Raining(s): 0.9 ] \\
+P( LoadFailure(box,truck) \; | \; Load(box,truck), s ) = [ Raining(s): 0.3 \; ; \; \lnot Raining(s): 0.1 ] 
+\end{eqnarray*}
+
+We will refer to this probabilistic case statement subsequently using
+the $pCase(n(\vec{x}) | A(\vec{x}), s)$ where $n(\vec{x})$ is the
+probability of nature's action choice for stochastic action
+$A(\vec{x})$ in state $s$.  Since the successor state axiomatization
+of a domain is specified for nature's actions only, they are
+unaffected by the generalization of the situation calculus to
+stochastic domains.  Additionally, we note that since nature's
+distribution over action choices depends only on the current state $s$,
+this representation is Markovian.
+
+\vskip .5pc \hskip -1pc
+{\bf Reward and state representation}
+
+\hskip -1pc
+When solving a FOMDP, our goal will be to derive a first-order value
+function.  Because we will determine this
+value function using regression techniques, we don't need an initial
+state - this algorithm will provide the optimal value function and
+policy for \emph{every} state in terms of a first-order case partitioning.
+We can represent our value and reward functions as case statements,
+e.g., a reward function could be specified as the following:
+\begin{eqnarray*}
+case & [ & (\exists b). BIn(b, Paris, s) \wedge TypeA(b): 10 \; ; \;  \\
+     &   & \lnot ((\exists b). BIn(b, Paris, s) \wedge TypeA(b)) \wedge (\exists b). BIn(b, Paris, s): 5 \; ; \; \\
+     &   & \lnot (\exists b). BIn(b, Paris, s): 0 \; \; ] \;
+\end{eqnarray*}
+This reward states that one receives a reward of 10 for having a box of type $A$ in Paris,
+one receives a reward of 5 for having any box in Paris not of type $A$, and one receives
+a reward of 0 for any other state.
+We note that this first-order partitioning is mutually exclusive and exhaustive,
+thus we must take care to prevent partitions from overlapping.\footnote{This accounts for
+the extremely long formula resulting in reward 5 that essentially states, if
+we don't satisfy the situation where we received a reward of 10, we can still get a
+reward of 5 for have a box in Paris not of type A.}
+Also, we note that since our first iteration of value iteration uses the reward function
+as $V^0(s)$, this representation is also the general format for our
+value function.  We refer to the reward and value case statements
+as $vCase(s)$ and $rCase(s)$ to show the explicit dependence of the reward
+and value functions on the state $s$.
+
+%%%%%%%%%
+
+\subsubsection{Dynamic programming for FOMDPs}
+
+Our next step is to generalize dynamic programming methods to
+efficiently solve for FOMDP value functions.  We use a value iteration
+approach and separate the dynamic programming backup into two steps:
+regression and maximization.  Then the overall algorithm is the same
+as for value iteration: we continue performing the Bellman backup until the
+maximum difference between the value function on two iterations
+(easily computed by $vCase^{i}(s) \ominus vCase^{i-1}(s)$) ensures
+$\epsilon$-optimality.  See the section on value iteration in MDPs for
+details on the termination criteria.
+
+\vskip .5pc \hskip -1pc
+{\bf First-order decision theoretic regression}
+
+\hskip -1pc
+
+On each regression step during value iteration, we want to determine the 
+value of an action.  In doing so, we generalize equation~\ref{qbackup} which
+provided a definition for $i$-state-to-go value function.  We replace $a$ in 
+the original equation with the stochastic action $A(\vec{x})$ parameterized
+by \emph{free} variables to obtain the following definition:
+\begin{equation}
+Q^{i}(A(\vec{x}),s) = R(s) + \gamma \cdot \left\{ \sum_{t \in S} P(t | A(\vec{x}),s) \cdot V^{i-1}(t) \right\}
+\end{equation}
+
+Through a sequence of steps, we 1) replace the probabilities with
+their decomposition into each of nature's $j$ action choices
+$n_j(\vec{x})$, 2) we replace the reward and value functions with
+their case representations defined previously, 3) and we regress
+$V^{i-1}(s)$ through nature's action choice since it is in the successor
+state and we need an expression in terms of the current state
+$V^i(s)$.  We arrive at the following expression for determining the
+one-step backup Q-function for a FOMDP:
+\begin{equation}
+Q^{i}(A(\vec{x}),s) = rCase(s) \oplus \gamma \cdot \{ \oplus_j \; \; pCase(n_j(\vec{x}) | s) \otimes Regr(vCase^{i-1}(do(n_j(\vec{x}),s) ))  \}
+\end{equation}
+
+\vskip .5pc \hskip -1pc
+{\bf Symbolic dynamic programming}
+
+\hskip -1pc
+
+After we've regressed each action, we need to maximize over each of the action
+Q-functions in order to derive the maximum value that could
+be achieved from each state:
+\begin{equation}
+V^{i}(s) = \max_{a \in A} \left\{ Q^{i}(s,a) \right\}
+\end{equation}
+
+To generalize this to the first order case, we note that the
+Q-functions can be represented as case
+partitions $qCase_{A(\vec{x})}^i(s)$.  However, these Q-functions are defined in
+terms of the free variables in the action bindings.  Instead, we need
+a Q-function that states, if an action exists that causes this state
+partition to hold, we can achieve the given value.  Consequently, we
+need to existentially quantify the action parameters of each
+Q-function and combine them all into a single value function that chooses
+a maximizing action for all partitions of state space.  By abusing notation
+slightly, we arrive at the following definition for an $i$-stage-to-go value function:
+\begin{equation}
+vCase^{i}(s) \equiv \exists A,\vec{x} \; qCase_{A(\vec{x})}^{i}(s) = t_1 \wedge \forall A,\vec{x} \; qCase_{A(\vec{x})}^{i}(s) = t_2 \supset t_1 \geq t_2
+\end{equation}
+
+In practice, we can determine partitioning that satisfies this definition by ordering
+the partitions of the union of the existentially quantified Q-functions
+for each stochastic action by decreasing value, and ensuring that the conditions for
+the first $n$ partitions are negated in the partition formula for the
+$n+1^{\textrm{st}}$ partition.  This ensures that the highest possible value
+is assigned to every state and results in an optimal, exclusively
+partitioned first-order value function.
+
+\vskip .5pc \hskip -1pc
+{\bf General remarks}
+
+\hskip -1pc
+In concluding this section on first-order MDPs, we note that this
+framework offers many attractive properties from an MDP perspective.
+First, it allows one to concisely represent PSTRIPS and PPDDL domains
+in a first-order domain.  Second, its solution algorithms do not
+require explicit state and action enumeration and therefore can solve
+for very concise representations of value functions when they exist.
+This latter property enables symbolic dynamic programming to solve for
+value functions in domains with potentially infinitely many objects.
+On the other hand, this expressivity comes with the drawback that
+theorem proving methods are required to fully simplify the Q
+and value function representations.  Such simplification is
+infeasible in the general case, and it is an open question as to
+whether acceptable performance can be attained through simplification
+methods that are strictly less powerful than first-order theorem
+proving.
+
+\comment{We will cover this in the section on future work, but we briefly note here that
+any implementation of the above algorithm will need to take care to remove inconsistency
+and redundancy in the value function.  The optimal value functions for many problems
+are quite small, but this requires first-order simplification techniques (not necessarily
+full first-order theorem proving) that are the subject of current research.}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+\section{Hierarchy and program constraints}
+
+Our previous approaches to decision-theoretic planning have made two
+assumptions:
+
+\begin{enumerate}
+\item We are planning at one level searching the entire state space (even if factored) and
+      using all possible actions.
+\item We are allowing any action to be executed at any point during
+      planning or execution.
+\end{enumerate}
+
+In making these assumptions, we are often presenting ourselves with
+a planning problem where much of the state space could be abstracted
+with little or no impact on the quality of the value function.  
+Furthermore, by considering every action at
+every step, we are often doing repetitive search that could easily be
+compiled into a macro-action allowing us to search in an
+abstracted, higher-level state space.  Addressing both of these issues
+is an important issue for scalability in MDPs and we discuss enhancements
+along both of these lines in the following sections.
+
+\subsection{Hierarchy and program constraints in MDPs}
+
+\subsubsection{Subtasks and weakly coupled MDPs}
+
+If a problem domain consists of many independent subprocesses that
+only interact via their dependence on globally shared resources, one
+can often factor these MDPs into tasks represented as independent
+subMDPs whose actions are globally constrained.  This model is
+referred to as a Markov task set (MTS)~\cite{weakly}.  
+
+\comment{For the MTS formalization given here, we assume that we have $n$
+undiscounted, finite horizon subMDP tasks\footnote{Since we assume
+that the global resource is not replenishable, the restriction to
+undiscounted, finite horizon MDPs seems a good way to model such a
+process.  However, the finite time nature of the model requires that
+an optimal policy be explicitly dependent on the number of steps to
+go.} where each task $i \in n$, can be represented as a non-stationary
+(i.e. time-dependent) MDP with local state set $S_i$ and local action
+set $A_i$ where each action $a_i \in A_i$ is assumed to be the amount of resource
+allocated.  We also assume a global fixed cost $c$ per unit resource.  
+A global non-stationary policy (i.e. a policy for each number $0 \ldots H-1$
+of time steps to go) is represented by a vector
+of local non-stationary policies for each task: 
+$\langle \pi_1^t, \ldots, \pi_n^t \rangle$.  
+The future expected reward is given by the following expression:
+\begin{equation}
+E \left[ \sum_{t=0}^{H-1} \sum_{i=1}^n T(s_i^t,\pi_i^t(s^t),s_i^{t+1}) R_i(s_i^t, \pi_i^t(s^t),t) - c \cdot \pi_i^t(s^t) \right]
+\end{equation}}
+
+One can solve MTS problems by solving the equivalent joint MDP formed by
+taking the cross-product of all state and action spaces for each
+of the task subMDPs, but obviously
+the MDP representation will grow exponentially with the number of tasks and
+thus becomes intractable for all but the smallest problems.  
+A more tractable approach is known as Markov Task Decomposition (MTD).
+
+MTD is an approximately optimal approach to solving the joint MDP that
+divides the solution into local and global optimization steps.  MTD
+first determines the optimal value function for each subtask.
+Following this local optimization, a global optimization phase then
+chooses a joint action at each time step that enforces the global
+resource constraint while trading off local action choices for each
+task in order to maximize the expected reward.  Since an optimal
+sequential solution in this case would be equivalent to solving the
+full joint MDP, one is usually restricted to both heuristic and myopic
+solution techniques.  Nevertheless, a good
+choice of heuristic allocator has allowed for near-optimal and
+extremely efficient solutions to these problems when compared to
+standard dynamic programming over the full joint MDP.
+
+While the MTD approach provides an attractive method for approximately 
+solving problems that can be formulated as MTSs, we note
+that the MTS model is severely restrictive in that it only allows interaction
+between tasks via shared resources.  
+Additionally, we note that the use of heuristic and myopic methods in the
+MTD approach prevent us from obtaining optimality guarantees for the resulting
+policy.
+
+\subsubsection{Semi-MDPs and options}
+
+Sutton et al.~\cite{smdp} introduced a temporally extended action
+definition known as an option based on the semi-MDP model.  In short,
+rather than restricting actions to primitives that complete in exactly
+one time step, we now allow for a more general model.  Options consist
+of three components: a policy $\pi: S \times A \rightarrow [0,1]$, a
+termination condition $\beta: S^+ \rightarrow [0,1]$ for the subset of
+reachable states $S^+$ in this option, and an entry or initiation state set
+$I \subseteq S$.  Consequently, an option corresponds to a policy that
+can be initiated from any state in $I$ and which terminates in any
+reachable state $s$ for which $\beta(s) = 1$.  An option
+will obviously require as many time steps as it needs to reach a
+terminal state starting from an initial state while executing a given
+policy. And since MDP transitions are stochastic, this number of time steps
+may vary from execution to execution.
+
+The one difficulty with handling multi-time-step actions stems from
+the need to apply a discount on the reward for every step taken.  If
+we simply treat a macro-action as a primitive action and discount it
+by $\gamma$ as usual, we are ignoring the fact that it may have taken
+1,2 or in general $n$ time-steps.  Certainly we don't want to
+calculate the discount for a 20 time-step action the same way we
+handle a discount for a single step action.  Thus, we need to
+introduce a framework that can handle the discount for macro-actions
+in a correct manner.
+
+The semi-MDP framework allows one to do this, but rather than discuss
+the option model in the context of semi-MDPs, we defer to the next
+section where we show that we can compile a semi-MDP with options
+(a.k.a. macro actions) into an MDP with non-Markovian
+policies, that is, the policy may depend upon both the current state
+\emph{and} the entry state for the option being currently executed.
+
+\subsubsection{Macro-actions and MDP abstraction}
+
+The idea of subdividing (or hierarchically subdividing) an MDP into
+weakly coupled components has been covered by Hauskrecht et
+al.~\cite{HMKDB} and Parr~\cite{flexible}.  These papers cover a number
+of automated methods for constructing these macros that range from
+using heuristic information concerning the value of macro exit states
+to piece together policies for local MDPs to methods for improving the
+global policy based on various macro policy error-analysis and improvement techniques.
+We note that these techniques can yield $\epsilon$-optimal global policies.
+
+As before, we can think of a macro-action $m$ as a policy in a subMDP:  we have
+a set of entrance states, a set of reachable states, and a subset
+of the reachable states which are termination states where we exit
+the macro.  Then our macro is just a policy $\pi_m$ to follow while in this
+region.  
+
+From the perspective of the MDP that invoked the macro $m$, we can
+actually think of this macro as a primitive action if we modify the
+transition and reward dynamics to implicitly take the discount factor
+into account.  Letting $s$ be any start state for a macro $m$, $s'$ be
+any of $m$'s termination states, and taking
+an expectation with respect to the time of termination $\tau$, we can
+define the discounted transition function for this macro as follows:
+\begin{eqnarray*}
+T(s,\pi_m,s') & = & E_{\tau} [\gamma^{\tau-1} \cdot P(s^{\tau} = s' | s^0 = s, \pi_m)] \\
+              & = & \sum_{t=1}^{\infty} \gamma^{t-1} \cdot P( \tau = t, s^t = s' | s^0 = s, \pi_m) 
+\end{eqnarray*}
+
+And we can define the discounted reward function for this macro as the
+following:
+\begin{eqnarray*}
+R_m(s,\pi_m) & = & E_{\tau} \left( \sum_{t=0}^{\tau} \gamma^t R(s^t, \pi_m(s^t)) | s^0 = s, \pi_m \right)
+\end{eqnarray*}
+
+These are both linear systems that can be solved directly or through iterative means.
+If $s \in S_i$, this computation requires time $O(|S_i|^3)$.
+
+We note that when forward-searching or regressing through this macro
+transition and reward model, we will be implicitly taking into account
+the expected sum of discounted reward for \emph{all} possible execution
+trajectories: the expected reward accumulated while executing the
+macro is handled via the
+\emph{discounted} reward function.  And the reward received after the macro is handled via
+the \emph{discounted} transition model.
+
+Additionally, we note that when executing this macro, we will actually be
+following the policy $\pi_m$ until it terminates.  This means that our high-level
+policy representation is no longer Markovian -- it is dependent 
+on the entry state of the macro being executed as well as the current state being
+evaluated.
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+% Figure 6? - Factored MDP and HAM diagram
+\begin{figure}[t!]
+
+\begin{center}
+%\framebox[4.0in]{$\;$}
+%\fbox{\rule[-.5cm]{0cm}{4cm} \rule[-.5cm]{4cm}{0cm}}
+\fbox{
+\epsfig{file=factorHAM.eps,angle=0,height=9cm} 
+}
+\end{center}
+\caption{a) An example of partitioning a large MDP state space into
+independent partitions with entry and exit states.  The action arcs
+in the abstracted MDP conform to local policies for their respective
+regions of state space.  b) A small example of the HAM model by
+applying program constraints $P$ to an MDP $M$.  The resulting composition
+$P \circ M$ has more states (i.e. $|P \times M|$), but the transition model
+is a constrained subset of the original (cooresponding to the program
+constraints) that should be more efficient to solve.}
+\label{factorham}
+
+\end{figure}
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+In using macro actions to solve problems, we can \emph{augment} the original
+action space with these macros.  Macros may speed the convergence of
+a solution since forward-search or regression through a single macro propagates
+value that is equivalent to forward-searching or regressing through many actions over
+a large time scale~\cite{smdp}.
+However, if the initial value function $V^0$
+is an upper bound on $V^*$, then value iteration in the augmented action
+space requires at least the same number of iterations for convergence
+as the original MDP~\cite{HMKDB}.  
+
+However, if we are willing to tradeoff policy quality for
+computational savings\footnote{Sometimes we can discard actions
+without sacrificing policy quality, but this is not always the case.}
+we can disregard some or all of the primitive actions and abstract to a
+higher-level MDP, one that only mentions the entrance and exit states
+of the macros (and primitive actions) that are retained.  An example
+of this type of MDP abstraction is shown in Figure~\ref{factorham}a.
+In doing this, we see that abstraction can yield much more compact
+MDPs (and therefore fewer states and actions to iterate over) with the
+drawback that we are limited to the subset of policies that can be
+constructed from our macro set.  Nonetheless, if we choose these
+macros well, this can make solving very large MDPs much more efficient
+than solving the original MDP.  While we previously discussed a few macro 
+construction techniques that allow us to attain an $\epsilon$-optimal policy,
+there are many open questions such
+as how to use MDP structure to infer macros, or how to compactly construct
+macros by exploiting their structure.
+
+\subsubsection{Hierarchies of abstract machines}
+
+Parr~\cite{parr-russell:nips97} defines a model known as Hierachies of
+Abstract Machines (HAMs) that introduces a method for solving an MDP
+under program constraints.  This differs from the previously discussed
+options and macro-actions in that we are directly restricting the
+global policy as opposed to restricting the set of policies to
+compositions of macro actions.  Yet in a general sense, these
+models are actually very similar in spirit - both abstract an MDP by
+restricting the set of allowable policies.  In this case, a program
+can be thought of as a mechanism for restricting the set of allowable
+actions given a program state.  Consequently, one can think of a HAM
+as a GOLOG-like constraint on MDP action selection such that at
+non-deterministic choice points, we want to determine the
+decision-theoretically optimal action.  We note that these HAMS can be
+hierarchical in the same way that one GOLOG program may call another.  
+The PHAM formalism~\cite{pham1} provides a similarly motivated
+LISP-like language 
+with parameterized procedures for defining program constraints.
+
+When solving a HAM, one can compose an augmented state space 
+$P \circ M$ consisting of the cross-product of the program state and the MDP
+state.  An example of this type of model composition is shown in
+Figure~\ref{factorham}b.  Clearly, if one can derive the optimal
+policy at each of these augmented states then one has an optimal
+solution to the MDP under the given program constraints.  While it
+would seem that the cross-product state space would be larger and
+therefore more difficult to solve, solving this constrained MDP is
+often easier than the unconstrained MDP since there are \emph{typically}
+fewer choice points.
+
+These ideas will prove extremely useful when we generalize them to
+solve FOMDPs with GOLOG program constraints (i.e., DT-GOLOG).  However,
+as is the case for program macros, this body of work is largely disconnected
+from the other work involving MDP structure.  One exception to
+this observation is the work of Andre and Russell~\cite{pham2}
+that combines state abstraction techniques with the PHAM model.
+
+\subsubsection{MAXQ hierarchical reinforcement learning}
+
+While hierarchical reinforcement learning (RL) is not something that
+we are addressing specifically in this survey,
+Dietterich's~\cite{maxq} MAXQ hierarchical RL is based on an MDP
+macro-action model that combines elements of both MDP abstraction
+and HAMs thus warranting a brief mention.
+
+In the MAXQ model, one is given a recursive task decomposition that
+can be thought of as a set of program constraints with potentially
+recursive subtasks.  The goal is to learn the optimal action policy
+for the choice points in this task hierarchy via the Q-learning
+algorithm~\cite{RL}.\footnote{However, we can easily generalize any model-based
+MDP solution algorithm to handle this model as well.}  At the base of
+this hierarchy are primitive actions with primitive Q-functions
+$Q(a,s)$ whose value is defined as usual.  All other levels of the
+task hierarchy are defined with subtask Q-functions $Q(p,s,a)$ that are
+augmented with the task $p$ since the policy while executing a subtask
+is both state and subtask dependent (i.e., non-Markovian).  $Q(p,s,a)$ is the expected
+discounted future reward for executing $p$ (including subtasks) until
+termination.  Dietterich shows that finding the optimal Q-functions
+according to these definitions
+allows one to determine a recursively optimal policy.\footnote{Optimal
+with respect to the state and subtasks available at each recursion
+level, assuming the subtasks themselves are recursively optimal.}
+
+We briefly note that each subtask in the task network conforms to
+a macro-action and thus we see that the MDP abstraction and HAM models
+can be seamlessly merged.
+
+\subsection{Hierarchy and program constraints in FOMDPs}
+
+\subsubsection{DT-GOLOG}
+
+Building on the ideas presented in the last section, we finish our survey of current
+work with perhaps the most expressive vertex of the representational cube provided
+in Figure~\ref{dims}: first-order MDPs with program constraints.
+
+In this framework, our goal is to generalize GOLOG to a
+decision-theoretic framework where we can explicitly determine a
+policy at non-deterministic choice points that maximizes the expected sum
+of discounted reward.  This framework is known as
+DT-GOLOG~\cite{dtgolog} and it allows a programmer to partially
+specify a high-level program while leaving the program intepreter to
+determine the optimal actions for the choices that remain.
+
+To formalize DT-GOLOG, we simply need to generalize the
+$Do(\delta,s,s')$ macro to a decision-theoretic version
+$BestDo(\delta,s) \rightarrow \mathbb{R}$.\footnote{For the following
+discussion, we slightly
+abuse notation in order to use an intuitive notation that draws a connection
+with previously discussed work.}  Whereas $Do(\delta,s,s')$ is 
+evaluated to true or false based on whether the program could be
+executed, we now assume that every action/macro can be executed from
+every state to allow $BestDo$ to be treated as a
+function.  This is easy to do by folding the preconditions into
+the positive and negative effect axioms, thus leading to a NOOP when
+the action cannot be executed.  The $BestDo$ function returns the maximum
+expected sum of discounted reward that can be achieved by executing a
+GOLOG program $\delta$ starting from $s$.
+
+Executing a DT-GOLOG program returns a reward and it also has an associated
+(perhaps multi-time-step) transition distribution.\footnote{Although it is not part
+of the original DT-GOLOG work, we note that we can compute both the
+expected transition and reward functions for these programs as we did
+previously for macro-actions by generalizing these methods to a first-order
+state space.}  Under this framework, the two sources of non-deterministic
+choice can now be formalized in a decision theoretic manner using
+Q-functions:\footnote{This is a manner somewhat similar to
+Dietterich's QMAX notation.  We will diverge from the actual notation
+used in the original DT-GOLOG paper~\cite{dtgolog} for simplicity of
+exposition.}
+
+\begin{itemize}
+
+\item \emph{DT nondeterministic program choice}:  $\; Q(s,BestDo([\delta_1 | \delta_2])) = \max \; \{ Q(s,BestDo(\delta_1)) \; ; \; Q(s,BestDo(\delta_2)) \}$
+
+The program executed corresponds to the one offering the maximal
+expected reward from situation $s$.  The choice for this construct
+is simply a state partitioning mapping to the
+program to be executed.  We note that this is what the
+maximization step is computing in symbolic dynamic programming for
+FOMDPs.
+
+\item \emph{DT nondeterministic choice of arguments}: $\; Q(s,BestDo((\pi x) \delta(x))) = \max_{x} \; \{ Q(s,BestDo(\delta(x))) \}$
+
+The program executed here is the one that maximizes the $\delta(\cdot)$
+binding.  The choice for this construct is again a state
+partitioning mapping to the action bindings that yield optimal program
+execution.  We note that this non-deterministic choice is what we are
+computing for all states when performing action regression in symbolic
+dynamic programming for FOMDPs.
+
+\end{itemize}
+
+We would have to appropriately define the Q-function
+distributions for all of the DT-GOLOG program constructs, but this perhaps gives
+one a flavor for the DT-GOLOG extension.
+
+We note that in practice, the original version of
+DT-GOLOG~\cite{dtgolog} was used in an off-line forward-search MDP
+solution algorithm.  In an empirical comparison to unconstrained
+search, the DT-GOLOG approach allowed search to a considerably deeper
+horizon.  Later work~\cite{dtgolog2} took a more RTDP-style
+approach to on-line search for the optimal action and execution.
+However, we note that these search-based approaches are not as efficient
+as dynamic programming approaches if a large percentage of the state-space
+is reachable.  Consequently, a better approach to solving FOMDPs under
+GOLOG program constraints may be to do dynamic programming in this framework;
+this will be discussed in the future work.
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+\newpage
+
+\section{Future directions}
+
+Here we outline some future directions for research in the areas
+of FOMDPS and DT-GOLOG.
+
+\comment{
+\subsection{Minor representational extensions}
+
+The current framework for first-order MDPs and DT-GOLOG are
+sufficiently general to represent a wide variety of problems but they
+still suffer from an inexpressive representation that does
+not allow for additive structure in the reward function, DBN
+factoring of action effects, or efficient representation of
+multiple objects.  In the following sections, we discuss a few
+of these potential extensions.}
+
+\subsection{First-order ADDs and approximation}
+
+Just as we used ADDs for efficient representation of context-specific
+structure in propositional MDPs, it is interesting to note that we
+can generalize to first-order ADDs and use similar techniques in the
+first-order case.  These techniques seem to hold promise since FOMDP
+value functions often have a great deal of redundant first-order structure.  If this
+redundant structure can be minimized by using a decision-diagram structure,
+then we can efficiently represent the policy while saving redundant computation.
+This is the subject of current research.
+
+\subsection{First-order basis functions and approximation}
+
+When it is impossible or intractable to derive an exact value function
+via the above methods, we can generalize the propositional idea of a
+basis function to the first order case.  In this case, our value
+function would be represented as a sum over potentially weighted
+$vCase(s)$ partitions.  This would allow us to exploit additive
+structure in FOMDP value functions.  The major challenges with this
+paradigm are computing the projection in the first-order case and
+selecting a good set of first-order basis functions.  In
+addition to what relations to choose, we now have the question of how
+to quantify and specify variables used in these first-order basis
+functions -- this adds an additional layer of complexity that was not
+present for propositional basis function selection.  However, the
+structure of the FOMDP (e.g., the transition dynamics and the
+successor state axioms) may give us some hints concerning useful
+basis functions.
+
+\subsection{DBN factored action decomposition}
+
+Our current decomposition of nature's choice actions from user actions
+is specified in a non-factored manner.  For example, if we can execute
+parallel actions in the blocks world, e.g., $stack(a,b)$ and $stack(c,d)$
+where $a,b,c,d$ are all pairwise unequal, then we might expect that
+the result of performing the first stack action will not affect the second.
+Under the current FOMDP model, we would need to treat this parallel
+action as a single stochastic action decomposing into a joint nature's
+choice action over the cross product of individual outcomes.  But if
+the effects are independent, then we could compute the result in
+a factored manner and avoid this joint computation.  Thus, one
+improvement would be to look at a factored action effect model based
+on a DBN.  This would allow for a considerable increase in
+computational efficiency if we allow parallel non-interfering actions or
+if actions have multiple independent effects.
+
+\subsection{FODTR with domain constraints}
+
+While solving a FOMDP can be difficult because we are implicitly
+solving for all domains, we can restrict ourselves to a specific
+domain and use model-checking techniques to perform simplification.
+Typically, we use first-order theorem proving or analogous methods to
+perform simplification of the first-order formula generated by value
+iteration.  However, if we have known domain constraints, we can use a
+model-checking approach for determining inconsistency, subsumption,
+and tautology in the simplification process.  While this would
+restrict the policy optimality to the given domain
+constraints, it would make the simplification task much more 
+feasible to implement in practice.
+
+\subsection{FODTR with GOLOG program constraints}
+
+We note that GOLOG program constraints can be applied to dynamic
+programming/regression solution methods.  Such an extension 
+involves an application of the HAM model using GOLOG as a
+specification of program
+constraints and a FOMDP for the state and transition model.
+While the presence of GOLOG constructs such as $while$ loops
+make this task non-trivial, a dynamic programming solution to
+FOMDPs under GOLOG program constraints would likely be much
+more efficient than the forward-search or RTDP approaches discussed previously.
+
+\subsection{FOMDP decomposition and abstraction}
+
+As opposed to solving a FOMDP under program constraints, we can also
+partition state space and learn policies for each partition and
+entry-state as described previously.  This approach would result in an
+abstracted FOMDP that could be solved more efficiently than the
+original, albeit optimal only with respect to the restricted policy space.
+The deterministic version of such a model has been explored by
+McIlraith and Fadel~\cite{complexact}.
+
+\comment{Same???
+\subsection{Domain abstraction and decomposition}
+
+In a similar flavor to the last suggestion, we can use
+automated FOMDP decomposition techniques to generate macros.
+Then we can abstract this MDP into a simpler higher-level 
+state space with only these macros.  While it would not guarantee
+optimality, a good choice of macros would help considerably
+with the tractability issues in FOMDP solution methods.
+}
+
+\subsection{First-order count aggregators}
+
+Many domains use an explicit representation of
+count and even make transitions or rewards dependent upon
+this count.  Consequently, it is interesting to consider augmenting our
+first-order domain language to handle explicit counts.  One
+could do this via $\exists_n$ macro extensions or via
+$\#_n$ count aggregators.
+
+\comment{
+\subsection{Major representational extensions}
+
+Due to the vast scope of decision-theoretic planning, it is impossible
+to cover all possible enhancements to this formalism in a single
+survey paper.  While we have already covered a very expressive
+formalism for decision-theoretic planning, there are a number of
+additional extensions that can be made to handle partial observability,
+model-free learning, multiple agents, and continuous actions.  We
+briefly consider how these extensions could be made and provide
+references to related work on these topics.
+
+\subsubsection{Partial observability} All formalisms that we use in this
+paper assume full observability of the state space.  That is, on every
+action, we can explicitly observe the entire state of the system -
+there would be no point in having observation actions in this
+framework since the state is inherently observable.  Nonetheless, one
+representational enhancement would be to consider planning domains
+where the state is only partially observable.  The interested reader
+should refer to Littman et al.~\cite{pomdp} for a general introduction to
+this type of decision model, generally known as a partially observable
+Markov decision process (POMDP).
+
+\subsubsection{Reinforcement learning / Model-free formalisms} All 
+formalisms that we use in this
+paper assume that we have an explicit model of the transition
+dynamics.  It is possible to consider planning in the absence of a
+model, where an agent can only observe the resulting state and reward
+for actions that it explicitly executes.  Such model-free formalisms
+are primarily addressed in the field of Reinforcement Learning - the
+interested reader should refer to Barto et al.~\cite{RL} for a general
+introduction to these topics.
+
+\subsubsection{Multiagent planning} All formalisms that we use in
+this paper assume that there is a single agent and a stationary
+environment (i.e. the transition dynamics do not change over time).
+One could generalize this to multiple agents where the state
+transition is determined by the joint action specified by each agent's
+individual choice.  In this case, it is no longer sufficient to
+maximize the outcome of an action since part of the action is
+controlled by potentially adversarial agents.  Thus, in a multiagent
+setting, each agent must take into account game theoretic
+considerations in order to maximize it's immediate and future reward
+in light of the other agent's potential actions.  The interested
+reader should refer to Poole~\cite{ICL} and Guestrin et al.~\cite{guestrin:nips01}, for some
+recent work in deriving approximate policies in such formalisms.
+
+\subsubsection{Continuous action space} All formalisms
+that we use in this paper assume discrete state and action sets.
+While it is possible to discretize continuous state and action quantities and cast
+them in an MDP framework, this approach suffers from severe issues of
+time-step, action, and state-space explosion as the discretizations
+become progressively smaller.  One can often benefit from modelling
+continous systems using techniques from stochastic systems and control
+theory.  Such techniques vary greatly from those presented here and
+are beyond the scope of this paper - the interested reader should
+refer to Kumar~\cite{control} for an introduction to work in this area.
+}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+\thispagestyle{empty}
+
+\newpage
+
+%\thispagestyle{empty}
+
+\newpage
+\pagenumbering{arabic}
+
+\bibliographystyle{plain}
+\bibliography{sanner-depth}
+
+\appendix
+
+\end{document}
+
+
+
+
